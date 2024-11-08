@@ -1,7 +1,7 @@
-import bcrypt
 from db import create_connection
 
 def check_user(email, password):
+    """Verify if a user exists and the password matches."""
     conn = create_connection()
     cursor = conn.cursor(dictionary=True)
     
@@ -11,6 +11,7 @@ def check_user(email, password):
     cursor.close()
     conn.close()
     
-    if user and bcrypt.checkpw(password.encode(), user["password"].encode()):
+    # Compare the plain text password (for simplicity)
+    if user and user["password"] == password:
         return user
     return None
