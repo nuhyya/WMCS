@@ -109,14 +109,83 @@ def add_record_form(table_name):
             write_record(table_name, list(values.keys()), list(values.values()))
         else:
             st.warning("Please fill out all fields before submitting.")
+            
+def get_primary_key_column(columns):
+    """
+    Identifies the likely primary key column based on naming conventions.
+    Assumes the primary key column will be named *'_id' (e.g., species_id, habitat_id).
+    
+    Args:
+        columns (list): List of column names in the table.
+    
+    Returns:
+        str: The name of the primary key column.
+    """
+    # Check for column names ending with '_id' which likely indicate primary key columns
+    for column in columns:
+        if column.endswith('_id'):
+            return column
+    return None
 
-# General dashboard function based on user role
+def delete_record(table_name, primary_key_column, record_id):
+    """
+    Deletes a record from the specified table based on the primary key column and record ID.
+    
+    Args:
+        table_name (str): Name of the table.
+        primary_key_column (str): The primary key column for the table.
+        record_id (int): The ID of the record to delete.
+    """
+    try:
+        with create_connection() as conn:
+            cursor = conn.cursor()
+            query = f"DELETE FROM {table_name} WHERE {primary_key_column} = %s"
+            cursor.execute(query, (record_id,))
+            conn.commit()
+            st.success(f"Record with {primary_key_column} {record_id} deleted from {table_name}.")
+    except Exception as e:
+        st.error(f"Error deleting record from {table_name}: {e}")
+
+def delete_record_form(table_name):
+    """
+    Generates a form to delete a record from the selected table based on its primary key.
+    
+    Args:
+        table_name (str): Name of the table to delete a record from.
+    """
+    st.subheader(f"Delete Record from {table_name.title()}")
+    
+    # Fetch columns dynamically from the table
+    columns = get_table_columns(table_name)
+    
+    # Get the primary key column for the table
+    primary_key_column = get_primary_key_column(columns)
+    
+    if primary_key_column:
+        # Get list of record IDs (primary key values) for the selected table
+        try:
+            with create_connection() as conn:
+                query = f"SELECT {primary_key_column} FROM {table_name}"
+                ids_df = pd.read_sql(query, conn)
+                record_ids = ids_df[primary_key_column].tolist()
+                
+                # Allow user to select a record to delete
+                record_id = st.selectbox(f"Select a record to delete based on {primary_key_column}", record_ids)
+                
+                # Button to delete the record
+                if st.button(f"Delete Record with {primary_key_column} {record_id}"):
+                    delete_record(table_name, primary_key_column, record_id)
+        except Exception as e:
+            st.error(f"Error fetching records for deletion: {e}")
+    else:
+        st.warning(f"No primary key column found for table {table_name}. Cannot delete records without a primary key.")           
+#General dashboard function based on user role
 def dashboard(role):
     st.subheader(f"{role.capitalize()} Dashboard")
     role_tables = {
         "Conservationist": ["habitat", "species", "movement", "interaction"],
         "Researcher": ["movements", "health_record", "species", "habitat"],
-        "Administrator": ["users", "habitat"]
+        "Administrator": ["users","interaction","movements", "health_record", "species", "habitat"]
     }
     
     # Select a table to view
@@ -130,7 +199,7 @@ if st.session_state["logged_in"]:
     role_tables = {
         "Conservationist": ["habitat", "species", "movement", "interaction"],
         "Researcher": ["movements", "health_record", "species", "habitat"],
-        "Administrator": ["users", "habitat"]
+        "Administrator": ["users","interaction","movements", "health_record", "species", "habitat"]
     }
 
     # Sidebar navigation
@@ -140,9 +209,11 @@ if st.session_state["logged_in"]:
     # Dashboard view based on user role
     dashboard(role)
     selected_table = st.selectbox("Choose a table to add a record", role_tables.get(role, []))
-    
-    # Display form for adding records
     add_record_form(selected_table)
+    # Display form for deleting records
+    selected_table = st.selectbox("Choose a table to delete a record", role_tables.get(role, []))
+    delete_record_form(selected_table)   
+    # Display form for adding records
     
     # Logout button
     if st.sidebar.button("Logout"):
