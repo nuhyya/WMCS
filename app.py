@@ -43,29 +43,30 @@ def display_table(table_name):
     except Exception as e:
         st.error(f"Error fetching data from {table_name}: {e}")
 
-
 # General dashboard function based on user role
 def dashboard(role):
     st.subheader(f"{role.capitalize()} Dashboard")
-    # Define tables accessible by each role
     role_tables = {
         "Conservationist": ["habitat", "species", "movement", "interaction"],
         "Researcher": ["movements", "health_record", "species", "habitat"],
         "Administrator": ["users", "habitat"]
     }
     
-    # Display tables based on role
-    for table_name in role_tables.get(role, []):
-        if st.button(f"View {table_name.replace('_', ' ').title()}"):
-            display_table(table_name)
+    # Select a table to view
+    table_name = st.selectbox("Choose a table to view", role_tables.get(role, []))
+    if table_name:
+        display_table(table_name)
 
 # Main app logic
 if st.session_state["logged_in"]:
     role = st.session_state["user_role"]
     
-    # Sidebar navigation based on role
+    # Sidebar navigation
     st.sidebar.title("Navigation")
-    st.sidebar.button(f"{role.capitalize()} Dashboard", on_click=lambda: dashboard(role))
+    st.sidebar.write(f"Logged in as: {st.session_state['user_name']} ({role})")
+    
+    # Dashboard view based on user role
+    dashboard(role)
     
     # Logout button
     if st.sidebar.button("Logout"):
