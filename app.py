@@ -343,6 +343,44 @@ def add_column_form():
     else:
         st.warning("You do not have permission to add columns.")
 
+def drop_table(table_name):
+    """
+    Adds a new column to the specified table.
+    
+    Args:
+        table_name (str): Name of the table to add the column to.
+        column_name (str): Name of the new column.
+        column_type (str): The data type of the new column (e.g., VARCHAR(255), INT).
+    """
+    try:
+        query = f"DROP TABLE {table_name} "
+        
+        with create_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            conn.commit()
+            st.success(f"  successfully dropped {table_name} table.")
+    except Exception as e:
+        st.error(f"Error dropping  {table_name}: {e}")
+        
+        
+def drop_table_form():
+    """
+    Generates a form for adding a column to a table, which is accessible only to administrators.
+    """
+    if st.session_state["user_role"] == "Administrator":
+        st.subheader("Drop Table")
+        
+        table_name = st.text_input("Table Name to drop", "")
+        
+        if st.button("Drop table"):
+            if table_name:
+                drop_table(table_name, column_name, column_type)
+            else:
+                st.warning("Please fill out all fields before submitting.")
+    else:
+        st.warning("You do not have permission to drop table .")
+
 
 def display_species_info():
     try:
@@ -416,7 +454,7 @@ def display_species_summary():
 def dashboard(role):
     st.subheader(f"{role.capitalize()} Dashboard")
     role_tables = {
-        "Conservationist": ["habitat", "species", "movement", "interaction"],
+        "Conservationist": ["habitat", "species", "movement", "interaction","health_record"],
         "Researcher": ["movement", "health_record", "species", "habitat","report"],
         "Administrator": ["users","interaction","movement", "health_record", "species", "habitat","audit_log"]
     }
@@ -447,7 +485,7 @@ def dashboard(role):
 if st.session_state["logged_in"]:
     role = st.session_state["user_role"]
     role_tables = {
-        "Conservationist": ["habitat", "species", "movement", "interaction"],
+        "Conservationist": ["habitat", "species", "movement", "interaction","health_record"],
         "Researcher": ["movement", "health_record", "species", "habitat","report"],
         "Administrator": ["users","interaction","movement", "health_record", "species", "habitat","audit_log"]
     }
@@ -460,19 +498,25 @@ if st.session_state["logged_in"]:
     dashboard(role)
 
     if role in ["Administrator" , "Conservationist"]:
-        
-        selected_table = st.selectbox("Choose a table to add a record", role_tables.get(role, []))
-        add_record_form(selected_table)
+
+        if st.sidebar.button("Add records"):
+            selected_table = st.selectbox("Choose a table to add a record", role_tables.get(role, []))
+            add_record_form(selected_table)
     
-        selected_table = st.selectbox("Choose a table to update a record", ["species", "habitat", "movement"])
-        update_record_form(selected_table)
+        if st.sidebar.button("Update records"):
+            selected_table = st.selectbox("Choose a table to update a record", ["species", "habitat", "movement"])
+            update_record_form(selected_table)
     
-        selected_table = st.selectbox("Choose a table to delete a record", role_tables.get(role, []))
-        delete_record_form(selected_table)   
+        if st.sidebar.button("Delete records"):
+            selected_table = st.selectbox("Choose a table to delete a record", role_tables.get(role, []))
+            delete_record_form(selected_table)   
     # Display form for adding records
     
     if role in ["Administrator"]:
-        add_column_form()
+        if st.sidebar.button("Add Columns"):
+            add_column_form()
+        if st.sidebar.button("Drop Table"):
+            drop_table_form()
     # Logout button
     if st.sidebar.button("Logout"):
         st.session_state["logged_in"] = False
